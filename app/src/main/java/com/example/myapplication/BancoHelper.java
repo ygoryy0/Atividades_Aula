@@ -36,10 +36,20 @@ public class BancoHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    // NOVO MÉTODO PARA EXCLUIR
+    // MÉTODO NOVO: ATUALIZAR (UPDATE)
+    public void atualizarPessoa(int id, String novoNome) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues valores = new ContentValues();
+        valores.put("nome", novoNome);
+
+        // Atualiza a linha onde o ID corresponde
+        db.update("pessoa", valores, "id = ?", new String[]{String.valueOf(id)});
+        db.close();
+    }
+
+    // MÉTODO EXCLUIR (DELETE)
     public void excluirPessoa(int id) {
         SQLiteDatabase db = getWritableDatabase();
-        // A cláusula 'where' é "id = ?" e o argumento é o ID da pessoa
         db.delete("pessoa", "id = ?", new String[]{String.valueOf(id)});
         db.close();
     }
@@ -51,7 +61,6 @@ public class BancoHelper extends SQLiteOpenHelper {
 
         while (cursor.moveToNext()) {
             Pessoa p = new Pessoa();
-            // 0 é o índice da coluna ID, 1 é o índice da coluna NOME
             p.setId(cursor.getInt(0));
             p.setNome(cursor.getString(1));
             lista.add(p);

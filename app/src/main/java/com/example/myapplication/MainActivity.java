@@ -13,15 +13,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 
-// A MainActivity implementa a interface de clique longo para receber o evento de exclusão
-public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnItemLongClickListener {
+// A MainActivity implementa ambas as interfaces
+public class MainActivity extends AppCompatActivity
+        implements PessoaAdapter.OnItemLongClickListener, PessoaAdapter.OnItemClickListener {
 
     EditText editNome;
     Button btnSalvar;
     RecyclerView recyclerView;
     BancoHelper helper;
     PessoaAdapter adapter;
-    // IMPORTANTE: Inicializar a lista vazia para evitar NullPointerException
     ArrayList<Pessoa> listaPessoas = new ArrayList<>();
 
     @Override
@@ -36,7 +36,6 @@ public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnI
         helper = new BancoHelper(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // Inicializa o adapter e carrega os dados pela primeira vez
         carregarLista();
 
         btnSalvar.setOnClickListener(v -> {
@@ -44,10 +43,7 @@ public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnI
             if (!nome.isEmpty()) {
                 helper.inserirPessoa(nome);
                 editNome.setText("");
-
-                // Chamada modificada para atualizar a lista após inserção
                 atualizarLista();
-
                 Toast.makeText(this, "Salvo com sucesso!", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Digite um nome!", Toast.LENGTH_SHORT).show();
@@ -55,31 +51,32 @@ public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnI
         });
     }
 
-    // Método chamado APENAS na criação da Activity
     private void carregarLista() {
+        // Usa addAll para evitar recriar o objeto listaPessoas
         listaPessoas.addAll(helper.listarPessoas());
 
         adapter = new PessoaAdapter(listaPessoas);
+
+        // Configura os DOIS Listeners
         adapter.setOnItemLongClickListener(this);
+        adapter.setOnItemClickListener(this);
+
         recyclerView.setAdapter(adapter);
     }
 
-    // NOVO MÉTODO: Chamado para atualizar os dados do RecyclerView após INSERT ou DELETE
     private void atualizarLista() {
-        // 1. Limpa a lista de dados atual (no Adapter)
+        // Correção de performance: Limpa e recarrega os dados, notificando o adapter
         listaPessoas.clear();
-
-        // 2. Adiciona todos os dados lidos novamente do banco
         listaPessoas.addAll(helper.listarPessoas());
-
-        // 3. Notifica o Adapter que os dados mudaram para redesenhar
         adapter.notifyDataSetChanged();
     }
 
-    // Implementação do método de clique longo
+    // ------------------------------------------
+    // LÓGICA DE EXCLUSÃO (DELETE - Clique Longo)
+    // ------------------------------------------
+
     @Override
     public void onItemLongClick(final int idDaPessoa) {
-        // Busca o nome para exibir na caixa de diálogo
         String nomeParaExcluir = "";
         for (Pessoa p : listaPessoas) {
             if (p.getId() == idDaPessoa) {
@@ -88,13 +85,11 @@ public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnI
             }
         }
 
-        // Constrói o AlertDialog (Pop-up de confirmação)
         new AlertDialog.Builder(this)
                 .setTitle("Excluir " + nomeParaExcluir + "?")
                 .setMessage("Tem certeza que deseja excluir este nome?")
                 .setPositiveButton("Excluir", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
-                        // Chama o método que executa a exclusão no banco e atualiza o RecyclerView
                         excluirRegistro(idDaPessoa);
                     }
                 })
@@ -102,13 +97,41 @@ public class MainActivity extends AppCompatActivity implements PessoaAdapter.OnI
                 .show();
     }
 
-    // Método auxiliar para realizar a exclusão e atualização
     private void excluirRegistro(int id) {
         helper.excluirPessoa(id);
-
-        // Atualiza a lista de forma eficiente
         atualizarLista();
-
         Toast.makeText(this, "Registro excluído com sucesso!", Toast.LENGTH_SHORT).show();
+    }
+
+    // ------------------------------------------
+    // LÓGICA DE EDIÇÃO (UPDATE - Clique Normal)
+    // ------------------------------------------
+
+    @Override
+    public void onItemClick(final int idDaPessoa, String nomeAtual) {
+
+        // Cria um EditText para o diálogo
+        final EditText input = new EditText(this);
+        input.setText(nomeAtual);
+        input.setHint("Digite o novo nome");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Editar Nome")
+                .setView(input)
+                .setPositiveButton("Salvar", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        String novoNome = input.getText().toString().trim();
+                        if (!novoNome.isEmpty()) {
+                            // Chama o método de atualização do BancoHelper
+                            helper.atualizarPessoa(idDaPessoa, novoNome);
+                            atualizarLista();
+                            Toast.makeText(MainActivity.this, "Nome atualizado!", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "O nome não pode ser vazio.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
     }
 }
